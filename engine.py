@@ -4,6 +4,10 @@ import csv
 import re
 import operator
 
+"""
+    Class engine
+    This class handles the main program in program()
+"""
 class Engine:
 
     def __init__(self):
@@ -92,6 +96,7 @@ class Engine:
             self.task_title = ""
             return False
 
+    # Validates Time Input
     def validate_time(self, time):
         try:
             val = int(time)
@@ -101,6 +106,7 @@ class Engine:
             self.task_time = 0
             return False
 
+    # Validates a Regex Pattern
     def validate_regex(self, regex_pattern):
         try:
             re.compile(regex_pattern)
@@ -127,11 +133,13 @@ class Engine:
                 "task_notes": task_notes
             })
 
+    # Gets all the entries from tasks.csv
     def get_entries(self):
         with open("tasks.csv") as csvfile:
             artreader = csv.DictReader(csvfile)
             self.entries = list(artreader)
 
+    # Gets the last task_id from created tasks for event handling
     def get_last_id(self):
         if len(self.entries):
             return int(self.entries[-1]["task_id"])
@@ -141,38 +149,27 @@ class Engine:
     # Search Entries by Date
     def search_entries_by_date(self, date):
         self.search_results = []
-        with open("tasks.csv") as csvfile:
-            artreader = csv.DictReader(csvfile)
-            rows = list(artreader)
-            for row in rows:
-                if row["task_date"] == date:
-                    self.search_results.append(row)
+        for row in self.entries:
+            if row["task_date"] == date:
+                self.search_results.append(row)
 
+    # Validates exact search
     def validate_exact_search(self, exact_search):
         self.search_results = []
-        with open("tasks.csv") as csvfile:
-            artreader = csv.DictReader(csvfile)
-            rows = list(artreader)
-            for row in rows:
-                if exact_search in row["task_title"] or exact_search in row["task_notes"]:
-                    self.search_results.append(row)
+        for row in self.entries:
+            if exact_search in row["task_title"] or exact_search in row["task_notes"]:
+                self.search_results.append(row)
 
     def search_results_with_date_range(self, low, high):
         self.search_results = []
-        with open("tasks.csv") as csvfile:
-            artreader = csv.DictReader(csvfile)
-            rows = list(artreader)
-            for row in rows:
-                if datetime.datetime.strptime(low, '%d/%m/%Y') <= datetime.datetime.strptime(row["task_date"], '%d/%m/%Y') <= datetime.datetime.strptime(high, '%d/%m/%Y'):
-                    self.search_results.append(row)
+        for row in self.entries:
+            if datetime.datetime.strptime(low, '%d/%m/%Y') <= datetime.datetime.strptime(row["task_date"], '%d/%m/%Y') <= datetime.datetime.strptime(high, '%d/%m/%Y'):
+                self.search_results.append(row)
 
     def search_entries_by_regex(self, regex_pattern):
-        with open("tasks.csv") as csvfile:
-            artreader = csv.DictReader(csvfile)
-            rows = list(artreader)
-            for row in rows:
-                if re.match(regex_pattern, row["task_title"]) or re.match(regex_pattern, row["task_notes"]):
-                    self.search_results.append(row)
+        for row in self.entries:
+            if re.match(regex_pattern, row["task_title"]) or re.match(regex_pattern, row["task_notes"]):
+                self.search_results.append(row)
 
     # Shows the search results
     def show_search_results(self):
@@ -187,7 +184,10 @@ class Engine:
             print("Notes: {} \n".format(self.search_results[self.current_result]["task_notes"]))
             print("Result {} of {}".format(self.current_result + 1, len(self.search_results)))
 
+        else:
+            self.error = "Oops... Looks like your search didn't have results."
 
+    # Gets next result
     def get_next_result(self):
         next_result = self.current_result + 1
         if (next_result < len(self.search_results)):
@@ -196,6 +196,7 @@ class Engine:
             self.current_result = 0
         self.show_search_results()
 
+    # Deletes result
     def delete_result(self):
         results = []
         if len(self.entries) == 0:
@@ -207,6 +208,7 @@ class Engine:
         self.update_csvfile()
         self.show_search_results()
 
+    # Update csv file with records
     def update_csvfile(self):
         os.remove('tasks.csv')
         with open("tasks.csv", "a") as csvfile:
@@ -223,12 +225,15 @@ class Engine:
                 })
                 count += 1
 
+    # Get specific entry
     def get_entry(self):
         return self.search_results[self.current_result]
 
+    # Gets first entry for tasks.csv
     def get_first_entry(self):
         return self.entries[0]["task_id"]
 
+    # Edits an entry
     def edit_entry(self, task_id, task_date, task_title, task_time, task_notes):
         for row in self.entries:
             if row["task_id"] == task_id:
@@ -242,6 +247,7 @@ class Engine:
         self.search_results[self.current_result]["task_notes"] = task_notes
         self.update_csvfile()
 
+    # Validates Information when creating or editing a task
     def validate_information(self, action = "add"):
 
         # Refresh Screen
@@ -461,9 +467,9 @@ class Engine:
 
                     # Shows the results results
                     self.clear_screen()
+                    self.show_search_results()
 
                     if len(self.search_results):
-                        self.show_search_results()
                         self.check_error()
                         self.option_result = self.choose_option("[N]ext, [E]dit, [D]elete, [R]eturn to search menu")
                     else:
@@ -491,6 +497,7 @@ class Engine:
 
                     # Return to search menu
                     elif self.option_result == "r":
+
                         self.option_search = ""
                         self.option_result = ""
                         self.search_results = []
