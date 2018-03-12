@@ -1,6 +1,8 @@
 import os
 import datetime
 import csv
+import re
+import operator
 
 class Engine:
 
@@ -26,6 +28,7 @@ class Engine:
         self.task_date = ""
         self.search_date = ""
         self.exact_search = ""
+        self.regex_pattern = ""
         self.range_date_low = ""
         self.range_date_high = ""
         self.task_title = ""
@@ -54,7 +57,8 @@ class Engine:
     def show_menu(self, options, title=""):
         if title!="":
             print(title)
-        for key, value in options.items():
+        sorted_menu = sorted(options.items(), key=operator.itemgetter(0))
+        for key, value in sorted_menu:
             print("{}) {}".format(key, value))
         print("\n")
 
@@ -89,11 +93,19 @@ class Engine:
             return False
 
     def validate_time(self, time):
-        if(int(time)>0):
+        try:
+            val = int(time)
             return True
-        else:
+        except ValueError:
             self.error = "Please Enter a Valid Time in Minutes"
             self.task_time = 0
+            return False
+
+    def validate_regex(self, regex_pattern):
+        try:
+            re.compile(regex_pattern)
+            return True
+        except re.error:
             return False
 
     # Shorcut to clear screen and check errorss
@@ -121,7 +133,10 @@ class Engine:
             self.entries = list(artreader)
 
     def get_last_id(self):
-        return int(self.entries[-1]["task_id"])
+        if len(self.entries):
+            return int(self.entries[-1]["task_id"])
+        else:
+            return -1
 
     # Search Entries by Date
     def search_entries_by_date(self, date):
@@ -151,17 +166,27 @@ class Engine:
                 if datetime.datetime.strptime(low, '%d/%m/%Y') <= datetime.datetime.strptime(row["task_date"], '%d/%m/%Y') <= datetime.datetime.strptime(high, '%d/%m/%Y'):
                     self.search_results.append(row)
 
+    def search_entries_by_regex(self, regex_pattern):
+        with open("tasks.csv") as csvfile:
+            artreader = csv.DictReader(csvfile)
+            rows = list(artreader)
+            for row in rows:
+                if re.match(regex_pattern, row["task_title"]) or re.match(regex_pattern, row["task_notes"]):
+                    self.search_results.append(row)
+
     # Shows the search results
     def show_search_results(self):
 
         self.clear_screen()
-        # Show the chosen result information
-        print("Date: {}".format(self.search_results[self.current_result]["task_date"]))
-        print("Title: {}".format(self.search_results[self.current_result]["task_title"]))
-        print("Time: {} Minutes".format(self.search_results[self.current_result]["task_time"]))
-        print("Notes: {} \n".format(self.search_results[self.current_result]["task_notes"]))
+        if len(self.search_results):
 
-        print("Result {} of {}".format(self.current_result + 1, len(self.search_results)))
+            # Show the chosen result information
+            print("Date: {}".format(self.search_results[self.current_result]["task_date"]))
+            print("Title: {}".format(self.search_results[self.current_result]["task_title"]))
+            print("Time: {} Minutes".format(self.search_results[self.current_result]["task_time"]))
+            print("Notes: {} \n".format(self.search_results[self.current_result]["task_notes"]))
+            print("Result {} of {}".format(self.current_result + 1, len(self.search_results)))
+
 
     def get_next_result(self):
         next_result = self.current_result + 1
@@ -219,11 +244,6 @@ class Engine:
 
     def validate_information(self, action = "add"):
 
-        self.task_date = ""
-        self.task_title = ""
-        self.task_time = 0
-        self.task_notes = ""
-
         # Refresh Screen
         self.refresh()
 
@@ -232,7 +252,7 @@ class Engine:
             print(entry)
 
         # If task date isn't set, asks for it
-        if self.task_date == "":
+        if not self.task_date:
             # Task Date
             if action == "add":
                 self.task_date = self.choose_option("Date of the task\nPlease use DD/MM/YYYY")
@@ -285,6 +305,8 @@ class Engine:
 
                 if(self.validate_time(self.task_time)):
 
+                    self.refresh()
+
                     if action == "add":
                         self.task_notes = self.choose_option("Notes (Optional, you can leave this empty)")
                     else:
@@ -308,8 +330,9 @@ class Engine:
                     # Press Enter to Return to Main Menu
                     self.task_date = ""
                     self.task_title = ""
-                    self.task_time = ""
+                    self.task_time = 0
                     self.task_notes = ""
+                    self.error = ""
 
     # Main Program
     def program(self):
@@ -342,114 +365,152 @@ class Engine:
                 # Refresh Screen
                 self.clear_screen()
 
-                # Show Second Menu
-                self.show_menu(self.options_search, "Search Entries\n")
+                if len(self.entries):
 
-                # Checks if search option is set
-                if self.option_search == "":
+                    # Show Second Menu
+                    self.show_menu(self.options_search, "Search Entries\n")
 
-                    # Search Option
-                    self.check_error()
-                    self.option_search = self.choose_option("Please Choose an option from the menu")
+                    # Checks if search option is set
+                    if self.option_search == "":
 
-                if self.option_search == "a":
+                        # Search Option
+                        self.check_error()
+                        self.option_search = self.choose_option("Please Choose an option from the menu")
 
-                    # Check if search date is set
-                    if self.search_date == "":
+                    if self.option_search == "a":
 
-                        # Clears Screen and checks errors
-                        self.refresh()
-                        # Asks the user for the date he/she wants to search for
-                        self.search_date = self.choose_option("Enter the date\nPlease use DD/MM/YYYY")
+                        # Check if search date is set
+                        if self.search_date == "":
 
-                    # Validate Search Date
-                    if(self.validate_date(self.search_date, "%d/%m/%Y")):
-
-                        # Search Entries by Exact Date
-                        self.search_entries_by_date(self.search_date)
-
-                elif self.option_search == "b":
-
-                    # Checks if search range low is set
-                    if self.range_date_low == "":
-                        # Clears Screen and checks errors
-                        self.refresh()
-                        self.range_date_low = self.choose_option("Enter the Date Low Range\nPlease use DD/MM/YYYY")
-
-                    if(self.validate_date(self.range_date_low, "%d/%m/%Y")):
-                        # Checks if search range low is set
-                        if self.range_date_high == "":
                             # Clears Screen and checks errors
                             self.refresh()
-                            self.range_date_high = self.choose_option("Enter the Date High Range\nPlease use DD/MM/YYYY")
+                            # Asks the user for the date he/she wants to search for
+                            self.search_date = self.choose_option("Enter the date\nPlease use DD/MM/YYYY")
 
-                        if(self.validate_date(self.range_date_high, "%d/%m/%Y")):
+                        # Validate Search Date
+                        if(self.validate_date(self.search_date, "%d/%m/%Y")):
 
-                            self.search_results_with_date_range(self.range_date_low, self.range_date_high)
+                            # Search Entries by Exact Date
+                            self.search_entries_by_date(self.search_date)
 
-                elif self.option_search == "c":
+                    elif self.option_search == "b":
 
-                    # Check if exact search is Set
-                    if self.exact_search == "":
+                        # Checks if search range low is set
+                        if self.range_date_low == "":
+                            # Clears Screen and checks errors
+                            self.refresh()
+                            self.range_date_low = self.choose_option("Enter the Date Low Range\nPlease use DD/MM/YYYY")
 
-                        # Clears Screen and checks errors
-                        self.refresh()
-                        # Asks the user for the string he/she wants to search for
-                        self.exact_search = self.choose_option("Enter the exact search you want to find")
+                        if(self.validate_date(self.range_date_low, "%d/%m/%Y")):
+                            # Checks if search range low is set
+                            if self.range_date_high == "":
+                                # Clears Screen and checks errors
+                                self.refresh()
+                                self.range_date_high = self.choose_option("Enter the Date High Range\nPlease use DD/MM/YYYY")
 
-                    # Validate Search String
-                    if(self.validate_exact_search(self.exact_search)):
+                            if(self.validate_date(self.range_date_high, "%d/%m/%Y")):
 
-                        # Search Entries by Exact Date
-                        self.search_entries_by_date(self.search_date)
+                                self.search_results_with_date_range(self.range_date_low, self.range_date_high)
 
-                elif self.option_search == "d":
-                    print("d")
-                elif self.option_search == "e":
-                    # Returns to Main Menu
+                    elif self.option_search == "c":
+
+                        # Check if exact search is Set
+                        if self.exact_search == "":
+
+                            # Clears Screen and checks errors
+                            self.refresh()
+                            # Asks the user for the string he/she wants to search for
+                            self.exact_search = self.choose_option("Enter the exact search you want to find")
+
+                        # Validate Search String
+                        if(self.validate_exact_search(self.exact_search)):
+
+                            # Search Entries by Exact Date
+                            self.search_entries_by_date(self.search_date)
+
+                    elif self.option_search == "d":
+
+                        # Check if regex pattern search is set
+                        if self.regex_pattern == "":
+
+                            # Clears Screen and checks errors
+                            self.refresh()
+                            # Asks the user for the Regex Pattern
+                            self.regex_pattern = self.choose_option("Enter the Regex Pattern you want to find")
+
+                        # Validate Regex
+                        if(self.validate_regex(self.regex_pattern)):
+
+                            # Search Entries by Exact Date
+                            self.search_entries_by_regex(self.regex_pattern)
+
+
+                    elif self.option_search == "e":
+                        # Returns to Main Menu
+                        self.option = ""
+                        self.error = ""
+
+                    elif self.option_search == "f":
+                        # Quits the program
+                        self.quit()
+                        break
+
+                    else:
+                        self.error = "Please choose a valid option."
+                        self.option_search = ""
+
+                    # Shows the results results
+                    self.clear_screen()
+
+                    if len(self.search_results):
+                        self.show_search_results()
+                        self.check_error()
+                        self.option_result = self.choose_option("[N]ext, [E]dit, [D]elete, [R]eturn to search menu")
+                    else:
+                        if self.option_search != "e":
+                            self.check_error()
+                            self.choose_option("Hit Enter to return to search menu")
+                            self.option_search = ""
+
+                        else:
+                            self.option_search = ""
+
+
+                    # Show Next Result
+                    if self.option_result == "n":
+                        self.get_next_result()
+
+                    # Edit Entry
+                    elif self.option_result == "e":
+
+                        self.validate_information("edit")
+
+                    # Delete Entry
+                    elif self.option_result == "d":
+                        self.delete_result()
+
+                    # Return to search menu
+                    elif self.option_result == "r":
+                        self.option_search = ""
+                        self.option_result = ""
+                        self.search_results = []
+                        self.error = ""
+
+                    # Didn't choose a valid option
+                    else:
+                        self.error = "Please choose a valid option."
+                        self.option_result = ""
+
+                else:
+                    print("Before searching, please add some tasks")
+                    self.choose_option("Hit Enter to return to main menu")
                     self.option = ""
-                    self.option_search = ""
-                elif self.option_search == "f":
-                    # Quits the program
-                    self.quit()
-                else:
-                    self.error = "Please choose a valid option."
-                    self.option_search = ""
-
-                # Shows the results results
-                self.clear_screen()
-                self.show_search_results()
-                self.check_error()
-                self.option_result = self.choose_option("[N]ext, [E]dit, [D]elete, [R]eturn to search menu")
-
-                # Show Next Result
-                if self.option_result == "n":
-                    self.get_next_result()
-
-                # Edit Entry
-                elif self.option_result == "e":
-
-                    self.validate_information("edit")
-
-                # Delete Entry
-                elif self.option_result == "d":
-                    self.delete_result()
-
-                # Return to search menu
-                elif self.option_result == "r":
-                    self.option_search = ""
-                    self.option_result = ""
-                    self.error = ""
-
-                # Didn't choose a valid option
-                else:
-                    self.error = "Please choose a valid option."
-                    self.option_result = ""
 
                 # Option C
             elif self.option == "c":
                     # Quits the program
                     self.quit()
+                    break
 
             # No valid Option
             else:
