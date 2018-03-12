@@ -1,5 +1,4 @@
-task_date,task_title,task_notes
-12/12/1991,asasas,aasa
-12/11/1111,asasas,asdasd
-12/11/1991,hola,notas
-12/11/1991,hola2,hola que mas
+task_id,task_date,task_title,task_time,task_notes
+0,12/11/1991,hola que hace,190,otras notas
+1,12/11/1991,dos tasks,100,nada
+2,12/11/1991,titulo3,95,otras
